@@ -1,0 +1,549 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f7f2">
+  <title>StomaLab — Analisis stomata</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #1c3029;
+      --muted: #78877f;
+      --line: #e7ece6;
+      --paper: #fff;
+      --page: #f5f7f2;
+      --green: #20745b;
+      --green-dark: #155842;
+      --mint: #e8f5ee;
+      --blue: #4d8fca;
+      --orange: #e6a143;
+      --shadow: 0 12px 35px rgba(31, 57, 44, .055);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--page); color: var(--ink); font-family: "Segoe UI", "DM Sans", sans-serif; font-size: 14px; }
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+    .app { max-width: 1600px; margin: 0 auto; min-height: 100vh; padding: 0 34px 38px; }
+    .topbar { height: 78px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); }
+    .brand { display: flex; align-items: center; gap: 11px; text-decoration: none; color: var(--ink); }
+    .brand-mark { width: 37px; height: 37px; display: grid; place-items: center; border-radius: 12px; color: white; background: var(--green); }
+    .brand-mark svg { width: 22px; height: 22px; }
+    .brand-name { font-family: Manrope, sans-serif; font-size: 17px; font-weight: 800; letter-spacing: -.55px; }
+    .brand-name span { color: var(--green); }
+    .top-right { display: flex; align-items: center; gap: 16px; color: var(--muted); font-size: 12px; }
+    .status-dot { display: inline-block; width: 7px; height: 7px; margin-right: 6px; border-radius: 50%; background: #54ad7a; }
+    .help-pill { display: flex; align-items: center; gap: 7px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 9px; color: var(--ink); background: white; }
+    .page-heading { display: flex; align-items: flex-end; justify-content: space-between; margin: 30px 0 22px; }
+    .eyebrow { margin: 0 0 7px; color: var(--green); font-size: 11px; font-weight: 700; letter-spacing: 1.1px; text-transform: uppercase; }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { margin-bottom: 5px; font-family: Manrope, sans-serif; font-size: clamp(24px, 3vw, 31px); line-height: 1.18; letter-spacing: -1px; }
+    .heading-copy { margin: 0; color: var(--muted); font-size: 13px; }
+    .actions { display: flex; gap: 9px; }
+    .btn { display: inline-flex; min-height: 39px; align-items: center; justify-content: center; gap: 8px; padding: 0 13px; border: 1px solid var(--line); border-radius: 9px; color: var(--ink); background: white; font-weight: 600; font-size: 12px; transition: .15s ease; }
+    .btn:hover:not(:disabled) { border-color: #b6c9be; background: #fbfdfb; }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+    .btn-primary { border-color: var(--green); color: white; background: var(--green); }
+    .btn-primary:hover:not(:disabled) { border-color: var(--green-dark); color: white; background: var(--green-dark); }
+    .btn svg { width: 15px; height: 15px; }
+    .workspace { display: grid; grid-template-columns: minmax(0, 1fr) 315px; gap: 18px; align-items: start; }
+    .card { border: 1px solid var(--line); border-radius: 13px; background: var(--paper); box-shadow: var(--shadow); }
+    .viewer-card { overflow: hidden; }
+    .viewer-head { display: flex; min-height: 59px; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 17px; border-bottom: 1px solid var(--line); }
+    .viewer-title { display: flex; min-width: 0; align-items: center; gap: 10px; }
+    .viewer-title strong { display: block; max-width: 290px; overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+    .viewer-title small { display: block; margin-top: 3px; color: var(--muted); font-size: 10px; }
+    .image-icon { width: 32px; height: 32px; display: grid; flex: 0 0 auto; place-items: center; border-radius: 9px; color: var(--green); background: var(--mint); }
+    .image-icon svg { width: 17px; height: 17px; }
+    .viewer-tools { display: flex; align-items: center; gap: 7px; }
+    .tool-btn { display: inline-flex; height: 31px; align-items: center; gap: 6px; padding: 0 9px; border: 1px solid var(--line); border-radius: 7px; color: #51645b; background: white; font-size: 10px; font-weight: 600; }
+    .tool-btn:hover, .tool-btn.active { border-color: #a9cbbb; color: var(--green-dark); background: #eff8f2; }
+    .tool-btn svg { width: 13px; height: 13px; }
+    .stage-wrap { position: relative; min-height: 410px; display: grid; place-items: center; overflow: hidden; padding: 17px; background-color: #f0f3ef; background-image: radial-gradient(#dce3dc .7px, transparent .7px); background-size: 13px 13px; }
+    #imageCanvas { display: none; max-width: 100%; max-height: min(68vh, 760px); height: auto; object-fit: contain; border-radius: 4px; box-shadow: 0 5px 25px #20392d25; cursor: crosshair; }
+    .empty-state { width: min(100%, 490px); padding: 35px 25px; border: 1.5px dashed #c9d6cc; border-radius: 14px; text-align: center; background: #ffffffc9; transition: .18s; }
+    .empty-state.dragging { border-color: var(--green); background: #edf8f1; }
+    .upload-icon { width: 49px; height: 49px; display: grid; place-items: center; margin: 0 auto 15px; border-radius: 15px; color: var(--green); background: var(--mint); }
+    .upload-icon svg { width: 24px; height: 24px; }
+    .empty-state h2 { margin-bottom: 6px; font-family: Manrope, sans-serif; font-size: 16px; }
+    .empty-state p { margin-bottom: 16px; color: var(--muted); font-size: 12px; line-height: 1.65; }
+    .file-hint { margin-top: 11px !important; margin-bottom: 0 !important; font-size: 10px !important; }
+    .viewer-foot { display: flex; min-height: 43px; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 16px; border-top: 1px solid var(--line); color: var(--muted); font-size: 10px; }
+    .legend { display: flex; gap: 14px; align-items: center; }
+    .legend-item { display: inline-flex; align-items: center; gap: 5px; }
+    .legend-mark { width: 9px; height: 9px; border: 2px solid; border-radius: 50%; }
+    .legend-mark.open { border-color: var(--blue); }
+    .legend-mark.closed { border-color: var(--orange); }
+    .legend-mark.uncertain { border-color: #a47ac1; }
+    .side-column { display: grid; gap: 14px; }
+    .side-card { padding: 16px; }
+    .section-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 13px; }
+    .section-title h2 { margin: 0; font-family: Manrope, sans-serif; font-size: 13px; font-weight: 800; }
+    .section-title small { color: var(--muted); font-size: 10px; }
+    .detect-card { padding: 15px; border-color: #d5e9dc; background: linear-gradient(135deg, #f7fcf8, #f0f8f2); }
+    .detect-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+    .detect-top h2 { margin: 0 0 5px; font-family: Manrope, sans-serif; font-size: 13px; }
+    .detect-top p { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.5; }
+    .sparkle { width: 30px; height: 30px; display: grid; flex: 0 0 auto; place-items: center; border-radius: 9px; color: var(--green); background: #e2f2e8; }
+    .sparkle svg { width: 15px; height: 15px; }
+    .detect-btn { width: 100%; margin-top: 13px; }
+    .detect-note { margin: 9px 0 0; color: #728279; font-size: 9px; line-height: 1.5; }
+    .tool-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+    .mode-button { min-height: 39px; display: flex; align-items: center; justify-content: flex-start; gap: 7px; padding: 0 9px; border: 1px solid var(--line); border-radius: 8px; color: #59675f; background: white; font-size: 10px; font-weight: 600; }
+    .mode-button.active { border-color: #a9cbbb; color: var(--green-dark); background: #eff8f2; }
+    .mode-dot { width: 9px; height: 9px; border: 2px solid; border-radius: 50%; }
+    .mode-dot.open { border-color: var(--blue); }
+    .mode-dot.closed { border-color: var(--orange); }
+    .mode-dot.erase { border-color: #db7771; }
+    .mode-dot.select { border-color: #9a8bb5; }
+    .input-label { display: block; margin: 13px 0 6px; color: #52645a; font-size: 10px; font-weight: 600; }
+    .number-field { position: relative; }
+    .number-field input { width: 100%; height: 36px; padding: 0 43px 0 10px; outline: none; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); background: #fff; font-size: 11px; }
+    .number-field select { width: 100%; height: 36px; padding: 0 10px; outline: none; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); background: #fff; font-size: 11px; }
+    .number-field input:focus, .number-field select:focus { border-color: #84b69a; box-shadow: 0 0 0 3px #dff0e5; }
+    .field-unit { position: absolute; top: 50%; right: 11px; transform: translateY(-50%); color: var(--muted); font-size: 10px; pointer-events: none; }
+    .field-help { margin: 6px 0 0; color: var(--muted); font-size: 9px; line-height: 1.5; }
+    .surface-switch { display: flex; gap: 5px; padding: 3px; border-radius: 8px; background: #f2f5f1; }
+    .surface-switch button { flex: 1; height: 29px; border: 0; border-radius: 6px; color: #718078; background: transparent; font-size: 10px; font-weight: 600; }
+    .surface-switch button.active { color: var(--green-dark); background: white; box-shadow: 0 1px 4px #1c302918; }
+    .metrics-card { padding-bottom: 10px; }
+    .metrics-card .section-title { margin: 0 15px; padding: 14px 0 12px; border-bottom: 1px solid var(--line); }
+    .metric { display: flex; align-items: center; justify-content: space-between; padding: 12px 15px; border-bottom: 1px solid #f0f2ef; }
+    .metric:last-of-type { border-bottom: 0; }
+    .metric-label { display: flex; align-items: center; gap: 8px; color: #57675e; font-size: 10px; line-height: 1.35; }
+    .metric-icon { width: 26px; height: 26px; display: grid; flex: 0 0 auto; place-items: center; border-radius: 8px; background: #f2f6f2; }
+    .metric-icon svg { width: 13px; height: 13px; }
+    .metric-value { color: var(--ink); font-family: Manrope, sans-serif; font-size: 18px; font-weight: 800; letter-spacing: -.5px; text-align: right; white-space: nowrap; }
+    .metric-value small { color: var(--muted); font-family: "DM Sans", sans-serif; font-size: 9px; font-weight: 500; letter-spacing: 0; }
+    .open-color { color: var(--blue); }
+    .closed-color { color: var(--orange); }
+    .density-color { color: var(--green); }
+    .percent-track { height: 4px; margin: 3px 15px 8px; overflow: hidden; border-radius: 4px; background: #eef0ed; }
+    .percent-fill { width: 0; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #62a6d5, #267cb3); transition: width .3s ease; }
+    .metric-note { padding: 0 15px; color: var(--muted); font-size: 9px; line-height: 1.5; }
+    .review-note { display: flex; gap: 8px; margin: 2px 14px 9px; padding: 10px; border-radius: 8px; color: #67557c; background: #f7f2fa; font-size: 9px; line-height: 1.5; }
+    .review-note svg { width: 13px; height: 13px; flex: 0 0 auto; margin-top: 1px; }
+    .bottom-info { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 16px; }
+    .info-card { display: flex; gap: 10px; padding: 13px; border: 1px solid var(--line); border-radius: 11px; background: #ffffffa8; }
+    .info-num { width: 23px; height: 23px; display: grid; flex: 0 0 auto; place-items: center; border-radius: 7px; color: var(--green); background: var(--mint); font-size: 10px; font-weight: 700; }
+    .info-card strong { display: block; margin-bottom: 3px; font-size: 10px; }
+    .info-card p { margin: 0; color: var(--muted); font-size: 9px; line-height: 1.55; }
+    #fileInput { display: none; }
+    .toast { position: fixed; z-index: 5; right: 22px; bottom: 22px; max-width: min(400px, calc(100vw - 44px)); padding: 12px 15px; transform: translateY(12px); border: 1px solid #d5e9dc; border-radius: 9px; color: #214b37; background: white; box-shadow: 0 8px 25px #183a2830; font-size: 12px; opacity: 0; pointer-events: none; transition: .2s; }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .loading { opacity: .6; pointer-events: none; }
+    @media (min-width: 1400px) { .workspace { grid-template-columns: minmax(0, 1fr) 340px; } }
+    @media (max-width: 950px) {
+      .app { padding-right: 19px; padding-left: 19px; }
+      .workspace { grid-template-columns: minmax(0, 1fr) 285px; gap: 13px; }
+      .stage-wrap { min-height: 350px; }
+      .bottom-info { gap: 8px; }
+    }
+    @media (max-width: 720px) {
+      .app { padding: 0 13px 24px; }
+      .topbar { height: 65px; }
+      .top-right .status-text { display: none; }
+      .page-heading { align-items: flex-start; flex-direction: column; gap: 14px; margin: 22px 0 16px; }
+      .actions { width: 100%; }
+      .actions .btn { flex: 1; }
+      .workspace { grid-template-columns: 1fr; }
+      .side-column { grid-template-columns: 1fr 1fr; align-items: start; }
+      .metrics-card { grid-column: 1 / -1; }
+      .viewer-head { padding: 10px 12px; }
+      .viewer-tools .tool-btn span { display: none; }
+      .tool-btn { width: 31px; justify-content: center; padding: 0; }
+      .stage-wrap { min-height: 300px; padding: 10px; }
+      #imageCanvas { max-height: 60vh; }
+      .bottom-info { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 450px) {
+      .side-column { grid-template-columns: 1fr; }
+      .metrics-card { grid-column: auto; }
+      .heading-copy { max-width: 320px; line-height: 1.5; }
+      .help-pill { padding: 7px 9px; }
+      .viewer-title strong { max-width: 190px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="StomaLab beranda">
+        <span class="brand-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21c4.4-2.8 7-6.8 7-11.4C15.5 9.7 13.2 8 12 4c-1.2 4-3.5 5.7-7 5.6C5 14.2 7.6 18.2 12 21Z"/><path d="M12 20c0-5.4 1.5-9 4-12"/></svg></span>
+        <span class="brand-name">stoma<span>lab</span></span>
+      </a>
+      <div class="top-right"><span class="status-text" id="aiStatus"><i class="status-dot"></i>AI lokal · StomAI</span><button class="help-pill" id="helpButton" type="button" aria-label="Petunjuk penggunaan">ⓘ <span>Panduan</span></button></div>
+    </header>
+
+    <main>
+      <section class="page-heading">
+        <div>
+          <p class="eyebrow">WORKSPACE ANALISIS</p>
+          <h1>Analisis stomata</h1>
+          <p class="heading-copy">Deteksi, tandai, dan hitung stomata dari citra mikroskopis.</p>
+        </div>
+        <div class="actions">
+          <button class="btn" id="resetButton" type="button" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12a9 9 0 1 0 2.6-6.4L3 8"/><path d="M3 3v5h5"/></svg>Reset</button>
+          <button class="btn btn-primary" id="exportButton" type="button" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M5 17v3h14v-3"/></svg>Unduh hasil PNG</button>
+        </div>
+      </section>
+
+      <section class="workspace">
+        <div class="card viewer-card">
+          <div class="viewer-head">
+            <div class="viewer-title">
+              <span class="image-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9" r="1.5"/><path d="m21 15-5-5L5 20"/></svg></span>
+              <div><strong id="imageName">Belum ada gambar</strong><small id="imageDimensions">Unggah citra mikroskopis untuk memulai</small></div>
+            </div>
+            <div class="viewer-tools">
+              <button class="tool-btn" id="zoomOut" type="button" title="Perkecil tampilan" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 5 5M7.5 10.8h6.5"/></svg><span>Zoom</span></button>
+              <button class="tool-btn" id="zoomIn" type="button" title="Perbesar tampilan" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 5 5m-8.5-8.5h6.5m-3.25-3.25v6.5"/></svg><span>Zoom</span></button>
+              <button class="tool-btn" id="replaceButton" type="button" title="Ganti gambar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 16V4m0 0L8 8m4-4 4 4"/><path d="M5 14v5h14v-5"/></svg><span>Ganti gambar</span></button>
+            </div>
+          </div>
+          <div class="stage-wrap" id="dropZone">
+            <div class="empty-state" id="emptyState">
+              <div class="upload-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 16V4m0 0L8 8m4-4 4 4"/><path d="M5 14v5h14v-5"/></svg></div>
+              <h2>Unggah gambar mikroskopis</h2>
+              <p>Seret gambar ke sini, atau pilih file dari perangkat. Gunakan gambar epidermis daun yang tajam dan memiliki kontras jelas.</p>
+              <button class="btn btn-primary" id="uploadButton" type="button">Pilih gambar</button>
+              <p class="file-hint">Format JPG, PNG, atau WebP · Maksimum 20 MB</p>
+            </div>
+            <canvas id="imageCanvas" aria-label="Gambar mikroskopis dengan anotasi stomata"></canvas>
+          </div>
+          <div class="viewer-foot">
+            <span id="canvasHint">Unggah gambar untuk mengaktifkan anotasi</span>
+            <div class="legend">
+              <span class="legend-item"><i class="legend-mark open"></i>Membuka</span>
+              <span class="legend-item"><i class="legend-mark closed"></i>Menutup</span>
+              <span class="legend-item"><i class="legend-mark uncertain"></i>Perlu tinjau</span>
+            </div>
+          </div>
+        </div>
+
+        <aside class="side-column">
+          <section class="card detect-card">
+            <div class="detect-top">
+              <div><h2>Deteksi AI khusus stomata</h2><p>Model StomAI (Mask R-CNN) untuk Arabidopsis dan barley.</p></div>
+              <span class="sparkle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m12 3 1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z"/><path d="m19 16 .8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8L19 16Z"/></svg></span>
+            </div>
+            <button class="btn btn-primary detect-btn" id="detectButton" type="button" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m12 3 1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z"/></svg>Deteksi stomata</button>
+            <p class="detect-note">Inferensi lokal di komputer. Hasil tetap perlu ditinjau; model dilatih untuk spesies yang tersedia di bawah.</p>
+          </section>
+
+          <section class="card side-card">
+            <div class="section-title"><h2>Anotasi manual</h2><small id="markCount">0 titik</small></div>
+            <div class="tool-grid" role="group" aria-label="Mode anotasi">
+              <button class="mode-button active" data-mode="select" type="button"><i class="mode-dot select"></i>Pilih / ubah</button>
+              <button class="mode-button" data-mode="open" type="button"><i class="mode-dot open"></i>Tambah membuka</button>
+              <button class="mode-button" data-mode="closed" type="button"><i class="mode-dot closed"></i>Tambah menutup</button>
+              <button class="mode-button" data-mode="erase" type="button"><i class="mode-dot erase"></i>Hapus titik</button>
+            </div>
+            <p class="field-help">Klik gambar untuk menambah titik, mengganti status, atau menghapus anotasi.</p>
+          </section>
+
+          <section class="card side-card">
+            <div class="section-title"><h2>Kalibrasi & sampel</h2></div>
+            <label class="input-label" for="fieldWidth">Lebar bidang gambar</label>
+            <div class="number-field"><input id="fieldWidth" type="number" min="0.0001" step="any" placeholder="Contoh: 0,45"><span class="field-unit">mm</span></div>
+            <p class="field-help">Masukkan lebar area yang terlihat pada gambar. Tinggi bidang dihitung otomatis dari rasio gambar.</p>
+            <label class="input-label" for="speciesSelect">Spesies untuk model AI</label>
+            <div class="number-field"><select id="speciesSelect" aria-label="Spesies model StomAI"><option value="Arabidopsis">Arabidopsis</option><option value="Barley">Barley (jelai)</option></select></div>
+            <p class="field-help">StomAI menyediakan bobot terlatih khusus untuk Arabidopsis dan barley. Pilih spesies yang paling sesuai dengan sampel.</p>
+            <label class="input-label">Permukaan daun</label>
+            <div class="surface-switch" role="group" aria-label="Permukaan daun">
+              <button class="active" data-surface="abaxial" type="button">Abaxial (bawah)</button>
+              <button data-surface="adaxial" type="button">Adaxial (atas)</button>
+            </div>
+          </section>
+
+          <section class="card metrics-card">
+            <div class="section-title"><h2>Hasil analisis</h2><small>langsung diperbarui</small></div>
+            <div class="metric">
+              <div class="metric-label"><span class="metric-icon open-color"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><ellipse cx="12" cy="12" rx="8" ry="4.5"/><path d="M4.5 10c1.3-3 4-4.5 7.5-4.5s6.2 1.5 7.5 4.5M4.5 14c1.3 3 4 4.5 7.5 4.5s6.2-1.5 7.5-4.5"/></svg></span>Jumlah stomata<br>membuka</div>
+              <div class="metric-value open-color" id="openCount">0 <small>titik</small></div>
+            </div>
+            <div class="metric">
+              <div class="metric-label"><span class="metric-icon closed-color"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><ellipse cx="12" cy="12" rx="7" ry="2.5"/><path d="M5 12c0-3.5 2.8-6 7-6s7 2.5 7 6m-14 0c0 3.5 2.8 6 7 6s7-2.5 7-6"/></svg></span>Jumlah stomata<br>menutup</div>
+              <div class="metric-value closed-color" id="closedCount">0 <small>titik</small></div>
+            </div>
+            <div class="metric">
+              <div class="metric-label"><span class="metric-icon density-color"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20V4m0 16h16M8 16l3-4 3 2 5-7"/><path d="M16 7h3v3"/></svg></span>Densitas stomata<br>abaxial</div>
+              <div class="metric-value density-color" id="densityValue">— <small>per mm²</small></div>
+            </div>
+            <div class="metric">
+              <div class="metric-label"><span class="metric-icon" style="color:#4187b7"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v17M3.5 12h17"/></svg></span>Persentase stomata<br>membuka</div>
+              <div class="metric-value" id="percentOpen">0<small>%</small></div>
+            </div>
+            <div class="percent-track"><div class="percent-fill" id="percentFill"></div></div>
+            <p class="metric-note" id="densityNote">Kalibrasi lebar bidang diperlukan untuk menghitung densitas.</p>
+            <div class="review-note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 11v5m0-8h.01"/></svg><span id="reviewNote">Status berasal dari model khusus StomAI; periksa dan koreksi anotasi sebelum memakai hasil.</span></div>
+          </section>
+        </aside>
+      </section>
+
+      <section class="bottom-info" aria-label="Panduan analisis">
+        <div class="info-card"><span class="info-num">1</span><div><strong>Siapkan citra</strong><p>Gunakan foto mikroskop epidermis daun dengan fokus dan pencahayaan yang merata.</p></div></div>
+        <div class="info-card"><span class="info-num">2</span><div><strong>Deteksi AI & tinjau</strong><p>Jalankan model StomAI lokal, lalu koreksi status membuka/menutup atau tambahkan titik manual.</p></div></div>
+        <div class="info-card"><span class="info-num">3</span><div><strong>Kalibrasi & simpan</strong><p>Masukkan lebar bidang dalam mm untuk menghitung densitas, lalu unduh gambar beranotasi.</p></div></div>
+      </section>
+    </main>
+  </div>
+  <input id="fileInput" type="file" accept="image/jpeg,image/png,image/webp">
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script>
+    (() => {
+      "use strict";
+      const fileInput = document.getElementById("fileInput");
+      const canvas = document.getElementById("imageCanvas");
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      const dropZone = document.getElementById("dropZone");
+      const emptyState = document.getElementById("emptyState");
+      const marks = [];
+      let imageLoaded = false;
+      let mode = "select";
+      let surface = "abaxial";
+      let zoom = 1;
+      let sourceName = "";
+      let sourceFile = null;
+      let toastTimer;
+
+      const byId = (id) => document.getElementById(id);
+      const showToast = (message) => {
+        const toast = byId("toast");
+        toast.textContent = message;
+        toast.classList.add("show");
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => toast.classList.remove("show"), 3200);
+      };
+      const updateMetrics = () => {
+        const open = marks.filter((mark) => mark.status === "open").length;
+        const closed = marks.filter((mark) => mark.status === "closed").length;
+        const uncertain = marks.filter((mark) => mark.status === "uncertain").length;
+        const total = open + closed + uncertain;
+        const confirmed = open + closed;
+        byId("openCount").innerHTML = `${open} <small>titik</small>`;
+        byId("closedCount").innerHTML = `${closed} <small>titik</small>`;
+        byId("markCount").textContent = `${total} titik${uncertain ? ` · ${uncertain} tinjau` : ""}`;
+        const percent = open + closed ? open / (open + closed) * 100 : 0;
+        byId("percentOpen").innerHTML = `${percent.toFixed(1)}<small>%</small>`;
+        byId("percentFill").style.width = `${percent}%`;
+        const width = Number(byId("fieldWidth").value);
+        if (surface !== "abaxial") {
+          byId("densityValue").innerHTML = `— <small>per mm²</small>`;
+          byId("densityNote").textContent = "Pilih permukaan abaxial untuk menampilkan densitas stomata bagian bawah daun.";
+        } else if (imageLoaded && Number.isFinite(width) && width > 0) {
+          const height = width * canvas.height / canvas.width;
+          byId("densityValue").innerHTML = `${(confirmed / (width * height)).toLocaleString("id-ID", { maximumFractionDigits: 1 })} <small>per mm²</small>`;
+          byId("densityNote").textContent = `Area bidang ${((width * height)).toLocaleString("id-ID", { maximumFractionDigits: 4 })} mm² · ${confirmed} titik terkonfirmasi${uncertain ? ` · ${uncertain} belum ditinjau` : ""}.`;
+        } else {
+          byId("densityValue").innerHTML = `— <small>per mm²</small>`;
+          byId("densityNote").textContent = "Kalibrasi lebar bidang diperlukan untuk menghitung densitas.";
+        }
+        byId("reviewNote").textContent = uncertain
+          ? `${uncertain} kandidat perlu ditinjau. Klik titik untuk mengubah status, atau pilih mode anotasi manual.`
+          : "Status berasal dari model khusus StomAI; periksa dan koreksi anotasi sebelum memakai hasil.";
+      };
+      const draw = () => {
+        if (!imageLoaded) return;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(canvas._source, 0, 0, canvas.width, canvas.height);
+        const scale = Math.max(canvas.width / 900, 1);
+        for (const [index, mark] of marks.entries()) {
+          const radius = Math.max(mark.radius || 8 * scale, 5);
+          const color = mark.status === "open" ? "#4d9dd0" : mark.status === "closed" ? "#eea744" : "#a47ac1";
+          ctx.beginPath();
+          ctx.arc(mark.x, mark.y, radius, 0, Math.PI * 2);
+          ctx.fillStyle = `${color}33`;
+          ctx.fill();
+          ctx.lineWidth = Math.max(2 * scale, 1.5);
+          ctx.strokeStyle = color;
+          ctx.stroke();
+          ctx.font = `600 ${Math.max(11 * scale, 10)}px "DM Sans", sans-serif`;
+          const label = String(index + 1);
+          const textWidth = ctx.measureText(label).width;
+          ctx.fillStyle = color;
+          ctx.fillRect(mark.x - textWidth / 2 - 4 * scale, mark.y - radius - 18 * scale, textWidth + 8 * scale, 15 * scale);
+          ctx.fillStyle = "#fff";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(label, mark.x, mark.y - radius - 10.5 * scale);
+        }
+      };
+      const setImage = (file) => {
+        if (!file) return;
+        if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+          showToast("Format file tidak didukung. Gunakan JPG, PNG, atau WebP.");
+          return;
+        }
+        if (file.size > 20 * 1024 * 1024) {
+          showToast("Ukuran gambar melebihi batas 20 MB.");
+          return;
+        }
+        const image = new Image();
+        const objectUrl = URL.createObjectURL(file);
+        image.onload = () => {
+          const maxDimension = 1400;
+          const ratio = Math.min(1, maxDimension / Math.max(image.naturalWidth, image.naturalHeight));
+          canvas.width = Math.round(image.naturalWidth * ratio);
+          canvas.height = Math.round(image.naturalHeight * ratio);
+          canvas._source = image;
+          canvas.style.transform = "scale(1)";
+          imageLoaded = true;
+          marks.length = 0;
+          zoom = 1;
+          sourceName = file.name;
+          sourceFile = file;
+          emptyState.style.display = "none";
+          canvas.style.display = "block";
+          byId("imageName").textContent = file.name;
+          byId("imageDimensions").textContent = `${image.naturalWidth} × ${image.naturalHeight} px`;
+          byId("canvasHint").textContent = "Pilih mode anotasi, atau jalankan deteksi otomatis.";
+          for (const id of ["resetButton", "exportButton", "detectButton", "zoomIn", "zoomOut"]) byId(id).disabled = false;
+          draw();
+          updateMetrics();
+          URL.revokeObjectURL(objectUrl);
+        };
+        image.onerror = () => {
+          URL.revokeObjectURL(objectUrl);
+          showToast("Gambar tidak dapat dibuka. Coba file gambar lain.");
+        };
+        image.src = objectUrl;
+      };
+      const findNearestMark = (x, y) => {
+        const threshold = Math.max(18 * Math.max(canvas.width / 900, 1), 12);
+        let nearest = -1;
+        let distance = threshold;
+        marks.forEach((mark, index) => {
+          const current = Math.hypot(mark.x - x, mark.y - y);
+          if (current < distance) { nearest = index; distance = current; }
+        });
+        return nearest;
+      };
+      const handleCanvasClick = (event) => {
+        if (!imageLoaded) return;
+        const rect = canvas.getBoundingClientRect();
+        const x = (event.clientX - rect.left) * canvas.width / rect.width;
+        const y = (event.clientY - rect.top) * canvas.height / rect.height;
+        const nearest = findNearestMark(x, y);
+        if (mode === "erase") {
+          if (nearest >= 0) marks.splice(nearest, 1);
+          else { showToast("Klik tepat pada lingkaran anotasi yang ingin dihapus."); return; }
+        } else if (mode === "open" || mode === "closed") {
+          if (nearest >= 0) marks[nearest].status = mode;
+          else marks.push({ x, y, status: mode, confidence: null });
+        } else if (nearest >= 0) {
+          const current = marks[nearest].status;
+          marks[nearest].status = current === "open" ? "closed" : current === "closed" ? "uncertain" : "open";
+        } else {
+          showToast("Pilih titik yang ada, atau gunakan mode tambah untuk membuat anotasi.");
+          return;
+        }
+        draw();
+        updateMetrics();
+      };
+      const detect = () => {
+        if (!imageLoaded) return;
+        const button = byId("detectButton");
+        button.classList.add("loading");
+        button.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m12 3 1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z"/></svg>Memproses dengan StomAI…';
+        const formData = new FormData();
+        formData.append("image", sourceFile);
+        formData.append("species", byId("speciesSelect").value);
+        fetch("http://127.0.0.1:8001/predict", { method: "POST", body: formData })
+          .then(async (response) => {
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(payload.detail || `Layanan model mengembalikan HTTP ${response.status}.`);
+            return payload;
+          })
+          .then((payload) => {
+            if (!Array.isArray(payload.detections)) throw new Error("Respons model tidak berisi daftar deteksi yang valid.");
+            if (!Number.isFinite(payload.width) || payload.width <= 0 || !Number.isFinite(payload.height) || payload.height <= 0) {
+              throw new Error("Ukuran gambar pada respons model tidak valid.");
+            }
+            const scaleX = canvas.width / payload.width;
+            const scaleY = canvas.height / payload.height;
+            marks.splice(0, marks.length, ...payload.detections.map((detection) => ({
+              x: detection.x * scaleX,
+              y: detection.y * scaleY,
+              radius: Math.max(detection.box_width * scaleX, detection.box_height * scaleY) * .58,
+              status: detection.status,
+              confidence: detection.confidence,
+            })));
+            draw();
+            updateMetrics();
+            const lowConfidence = marks.filter((mark) => mark.confidence < .75).length;
+            byId("aiStatus").innerHTML = '<i class="status-dot"></i>StomAI lokal · terhubung';
+            showToast(`${marks.length} stomata terdeteksi oleh StomAI${lowConfidence ? ` · ${lowConfidence} berkeyakinan rendah, tinjau hasilnya` : ""}.`);
+          })
+          .catch((error) => {
+            console.error("Inferensi StomAI gagal:", error);
+            byId("aiStatus").innerHTML = '<i class="status-dot" style="background:#d58d5b"></i>StomAI lokal · tidak terhubung';
+            showToast(error.message.includes("Failed to fetch")
+              ? "Server StomAI belum aktif. Jalankan run_stomai.ps1 di folder proyek, lalu coba lagi."
+              : `Deteksi StomAI gagal: ${error.message}`);
+          })
+          .finally(() => {
+            button.classList.remove("loading");
+            button.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m12 3 1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z"/></svg>Deteksi stomata';
+          });
+      };
+
+      byId("uploadButton").addEventListener("click", () => fileInput.click());
+      byId("replaceButton").addEventListener("click", () => fileInput.click());
+      fileInput.addEventListener("change", () => { setImage(fileInput.files[0]); fileInput.value = ""; });
+      byId("detectButton").addEventListener("click", detect);
+      canvas.addEventListener("click", handleCanvasClick);
+      byId("fieldWidth").addEventListener("input", updateMetrics);
+      document.querySelectorAll(".mode-button").forEach((button) => button.addEventListener("click", () => {
+        mode = button.dataset.mode;
+        document.querySelectorAll(".mode-button").forEach((item) => item.classList.toggle("active", item === button));
+        canvas.style.cursor = mode === "erase" ? "not-allowed" : mode === "select" ? "pointer" : "crosshair";
+      }));
+      document.querySelectorAll("[data-surface]").forEach((button) => button.addEventListener("click", () => {
+        surface = button.dataset.surface;
+        document.querySelectorAll("[data-surface]").forEach((item) => item.classList.toggle("active", item === button));
+        updateMetrics();
+      }));
+      dropZone.addEventListener("dragover", (event) => { event.preventDefault(); emptyState.classList.add("dragging"); });
+      dropZone.addEventListener("dragleave", (event) => { if (!dropZone.contains(event.relatedTarget)) emptyState.classList.remove("dragging"); });
+      dropZone.addEventListener("drop", (event) => {
+        event.preventDefault();
+        emptyState.classList.remove("dragging");
+        setImage(event.dataTransfer.files[0]);
+      });
+      byId("resetButton").addEventListener("click", () => {
+        marks.length = 0;
+        byId("fieldWidth").value = "";
+        mode = "select";
+        document.querySelectorAll(".mode-button").forEach((button) => button.classList.toggle("active", button.dataset.mode === mode));
+        draw();
+        updateMetrics();
+        showToast("Anotasi dan kalibrasi telah direset.");
+      });
+      byId("exportButton").addEventListener("click", () => {
+        if (!imageLoaded) return;
+        const output = document.createElement("canvas");
+        output.width = canvas.width;
+        output.height = canvas.height;
+        const outputCtx = output.getContext("2d");
+        outputCtx.drawImage(canvas, 0, 0);
+        const link = document.createElement("a");
+        link.download = `${sourceName.replace(/\.[^.]+$/, "") || "stomata"}-anotasi.png`;
+        link.href = output.toDataURL("image/png");
+        link.click();
+      });
+      byId("zoomIn").addEventListener("click", () => { zoom = Math.min(zoom + .15, 1.75); canvas.style.transform = `scale(${zoom})`; });
+      byId("zoomOut").addEventListener("click", () => { zoom = Math.max(zoom - .15, .7); canvas.style.transform = `scale(${zoom})`; });
+      byId("helpButton").addEventListener("click", () => showToast("Unggah citra → deteksi dan tinjau anotasi → masukkan lebar bidang (mm) → unduh PNG. Klik anotasi untuk mengganti status."));
+      fetch("http://127.0.0.1:8001/health")
+        .then((response) => {
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          return response.json();
+        })
+        .then(() => { byId("aiStatus").innerHTML = '<i class="status-dot"></i>StomAI lokal · terhubung'; })
+        .catch(() => { byId("aiStatus").innerHTML = '<i class="status-dot" style="background:#d58d5b"></i>StomAI lokal · tidak terhubung'; });
+    })();
+  </script>
+</body>
+</html>
